@@ -810,9 +810,9 @@ function App(){
     });
   };
 
-  const handleEnd=useCallback(()=>{
+  const handleEnd=useCallback(async()=>{
     const finalStandings=calcSt(aps,sched,scores);
-    saveHistory({
+    await saveHistory({
       date: new Date().toISOString(),
       code: tCode,
       config: cfg,
