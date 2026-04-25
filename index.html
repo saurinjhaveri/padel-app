@@ -158,11 +158,12 @@
   .hist-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--card-r-lg);margin-bottom:10px;overflow:hidden;transition:border-color .15s}
   .hist-card:hover{border-color:#2A3D56}
   .hist-top{padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px}
-  .hist-date{font-size:12px;color:var(--text-2);white-space:nowrap;flex-shrink:0}
   .hist-info{flex:1;min-width:0}
-  .hist-winner{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hist-meta{font-size:12px;color:var(--text-2);margin-top:2px}
-  .hist-badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border:1px solid var(--border);color:var(--text-2);background:var(--surface2);white-space:nowrap;flex-shrink:0}
+  .hist-winner{font-size:15px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .hist-sub{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px}
+  .hist-meta{font-size:12px;color:var(--text-2)}
+  .hist-date{font-size:11px;color:var(--text-3)}
+  .hist-badge{padding:2px 7px;border-radius:12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border:1px solid var(--border);color:var(--text-2);background:var(--surface2);white-space:nowrap}
   .hist-chevron{font-size:14px;color:var(--text-3);flex-shrink:0;transition:transform .2s}
   .hist-chevron.open{transform:rotate(90deg)}
   .hist-body{border-top:1px solid var(--border);padding:14px 16px}
@@ -190,7 +191,7 @@
 </head>
 <body>
 <div id="parea"></div>
-<div id="app">Loading…</div>
+<div id="app"></div>
 
 <script src="https://unpkg.com/preact@10/dist/preact.umd.js"></script>
 <script src="https://unpkg.com/preact@10/hooks/dist/hooks.umd.js"></script>
@@ -498,20 +499,29 @@ function CourtCard({m,idx,players,scores,setScore,cfg,compact}){
   const sz=compact?{width:'46px',fontSize:'20px',padding:'6px'}:{width:'60px',fontSize:'24px',padding:'8px'};
   const nc='pname'+(compact?' sm':'');
 
+  const handleScore=(field,val)=>{
+    setScore(m.id,field,val);
+    const n=parseInt(val);
+    if(!isNaN(n)&&n>=0&&n<=cfg.pts){
+      const other=field==='s1'?'s2':'s1';
+      setScore(m.id,other,String(cfg.pts-n));
+    }
+  };
+
   return html`<div class="m-card">
     <div class="m-court">Court ${idx+1}</div>
     <div class="m-body">
       <div class="m-team">
         ${m.team1.map(id=>html`<span key=${id} class=${nc+' '+(pGend(id,players)==='male'?'ml':'fl')}>${pName(id,players)}</span>`)}
         <div class="m-scw">
-          <input class="sc-inp" style=${sz} type="number" min="0" max=${cfg.pts} placeholder="0" value=${s1} onInput=${e=>setScore(m.id,'s1',e.target.value)}/>
+          <input class="sc-inp" style=${sz} type="number" min="0" max=${cfg.pts} placeholder="0" value=${s1} onInput=${e=>handleScore('s1',e.target.value)}/>
         </div>
       </div>
       <div class="vs-lbl">vs</div>
       <div class="m-team right">
         ${m.team2.map(id=>html`<span key=${id} class=${nc+' '+(pGend(id,players)==='male'?'ml':'fl')}>${pName(id,players)}</span>`)}
         <div class="m-scw">
-          <input class="sc-inp" style=${sz} type="number" min="0" max=${cfg.pts} placeholder="0" value=${s2} onInput=${e=>setScore(m.id,'s2',e.target.value)}/>
+          <input class="sc-inp" style=${sz} type="number" min="0" max=${cfg.pts} placeholder="0" value=${s2} onInput=${e=>handleScore('s2',e.target.value)}/>
         </div>
       </div>
     </div>
@@ -563,13 +573,14 @@ function ShareBar({code,sched,aps,cfg}){
 }
 
 function HistoryView({onBack}){
-  const [history,setHistory]=useState([]);
-  const [loading,setLoading]=useState(true);
+  const [history,setHistory]=useState(()=>{
+    try{const v=localStorage.getItem('padel_history');return v?JSON.parse(v):[];}catch(e){return [];}
+  });
   const [expanded,setExpanded]=useState(null);
   const [confirming,setConfirming]=useState(false);
 
   useEffect(()=>{
-    loadHistory().then(h=>{setHistory(h);setLoading(false);});
+    loadHistory().then(h=>setHistory(h));
   },[]);
 
   const handleClear=async()=>{
@@ -586,7 +597,7 @@ function HistoryView({onBack}){
       <button class="btn-sec" onClick=${onBack}>← New Tournament</button>
       ${history.length>0?html`<button class="hist-clear" onClick=${handleClear}>${confirming?'Tap again to confirm':'Clear all history'}</button>`:null}
     </div>
-    ${loading?html`<div class="hist-empty"><span class="hist-empty-ico">⏳</span><div style="font-size:14px;color:var(--text-2)">Loading history…</div></div>`:history.length===0?html`
+    ${history.length===0?html`
       <div class="hist-empty">
         <span class="hist-empty-ico">📋</span>
         <div style="font-size:16px;font-weight:600;margin-bottom:8px">No tournaments yet</div>
@@ -600,20 +611,15 @@ function HistoryView({onBack}){
       return html`
         <div class="hist-card" key=${t.code||i}>
           <div class="hist-top" onClick=${()=>setExpanded(isOpen?null:i)}>
-            <div style="display:flex;flex-direction:column;align-items:center;min-width:48px">
-              <span style="font-size:22px">${i===0&&history.length>1?'🏅':'🎾'}</span>
-            </div>
+            <span style="font-size:24px;flex-shrink:0">${i===0&&history.length>1?'🏅':'🎾'}</span>
             <div class="hist-info">
-              <div class="hist-winner" style=${w?.gender==='male'?'color:#4DA6FF':'color:#FF7EB3'}>
-                🏆 ${w?.name||'—'}
-                <span style="font-weight:400;color:var(--text-2);font-size:13px"> · ${w?.pts} pts</span>
-              </div>
-              <div class="hist-meta">
-                ${t.players?.length||0} players · ${t.rounds} rounds · ${t.config?.pts} pts/match
+              <div class="hist-winner" style=${`color:${w?.gender==='male'?'#4DA6FF':'#FF7EB3'}`}>${`🏆 ${w?.name||'—'}`}<span style="font-weight:400;color:#7A99B5;font-size:13px">${` · ${w?.pts??'—'} pts`}</span></div>
+              <div class="hist-sub">
+                <span class="hist-meta">${`${t.players?.length||0} players · ${t.rounds} rounds · ${t.config?.pts} pts/match`}</span>
+                <span class="hist-badge">${`${fmt} ${typ}`}</span>
+                <span class="hist-date">${fmtDate(t.date)}</span>
               </div>
             </div>
-            <span class="hist-badge">${fmt} ${typ}</span>
-            <span class="hist-date">${fmtDate(t.date)}</span>
             <span class=${'hist-chevron'+(isOpen?' open':'')}>›</span>
           </div>
           ${isOpen?html`
