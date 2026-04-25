@@ -362,8 +362,12 @@ const HIST_KEY = '__history__';
 
 async function saveHistory(entry) {
   let hist = await loadHistory();
-  if (hist.some(h => h.code && h.code === entry.code)) return;
-  hist.unshift(entry);
+  const existingIdx = hist.findIndex(h => h.code && h.code === entry.code);
+  if (existingIdx >= 0) {
+    hist[existingIdx] = entry;
+  } else {
+    hist.unshift(entry);
+  }
   hist = hist.slice(0, 50);
   // save to server
   try {
@@ -589,6 +593,14 @@ function HistoryView({onBack}){
     else{setConfirming(true);setTimeout(()=>setConfirming(false),3000);}
   };
 
+  const handleDelete=async(code)=>{
+    const updated=history.filter(h=>h.code!==code);
+    setHistory(updated);
+    setExpanded(null);
+    try{await fetch(apiUrl(HIST_KEY),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(updated)});}catch(e){}
+    try{localStorage.setItem('padel_history',JSON.stringify(updated));}catch(e){}
+  };
+
   return html`<div>
     <div class="app-hdr">
       <h1>🎾 Padel <span>History</span></h1>
@@ -632,6 +644,9 @@ function HistoryView({onBack}){
               <div style="margin-top:10px;font-size:12px;color:var(--text-3)">
                 Code: <span style="font-family:monospace;letter-spacing:2px;color:var(--text-2)">${t.code||'—'}</span>
                 · ${t.config?.courts} court${t.config?.courts>1?'s':''}
+              </div>
+              <div class="hist-actions">
+                <button class="btn-danger" style="font-size:12px;padding:7px 12px" onClick=${e=>{e.stopPropagation();handleDelete(t.code);}}>Delete entry</button>
               </div>
             </div>
           `:null}
@@ -770,7 +785,7 @@ function PlayView({players, tab, setTab, scores, setScore, standings, cfg, code,
   </div>`;
 }
 
-function DoneView({standings, sched, aps, cfg, onRestart, onHistory}){
+function DoneView({standings, sched, aps, cfg, onRestart, onHistory, onBack}){
   const w=standings[0];
   return html`<div>
     <div class="win-card">
@@ -785,6 +800,7 @@ function DoneView({standings, sched, aps, cfg, onRestart, onHistory}){
     </div>
     <${Leaderboard} standings=${standings}/>
     <div class="act-row" style="margin-top:1.2rem">
+      <button class="btn-sec" onClick=${onBack}>← Back to matches</button>
       <button class="btn-sec" onClick=${()=>printDrawSheet(sched,aps,cfg)}>Print draw sheet</button>
       <button class="btn-sec" onClick=${onHistory}>📋 View History</button>
       <button class="btn-main" onClick=${onRestart}>New tournament</button>
@@ -893,7 +909,7 @@ function App(){
 
   if(view==='playing')return html`<${PlayView} players=${aps} tab=${tab} setTab=${setTab} scores=${scores} setScore=${setScore} standings=${standings} cfg=${cfg} code=${tCode} sched=${sched} onNextMexicano=${handleNextMexicano} onEnd=${handleEnd}/>`;
 
-  return html`<${DoneView} standings=${standings} sched=${sched} aps=${aps} cfg=${cfg} onRestart=${()=>{setView('setup');setScores({});window.location.hash='';}} onHistory=${()=>setView('history')}/>`;
+  return html`<${DoneView} standings=${standings} sched=${sched} aps=${aps} cfg=${cfg} onRestart=${()=>{setView('setup');setScores({});window.location.hash='';}} onHistory=${()=>setView('history')} onBack=${()=>setView('playing')}/>`;
 }
 
 render(html`<${App}/>`,document.getElementById('app'));
