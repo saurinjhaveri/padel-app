@@ -361,6 +361,7 @@ const HIST_KEY = '__history__';
 
 async function saveHistory(entry) {
   let hist = await loadHistory();
+  if (hist.some(h => h.code && h.code === entry.code)) return;
   hist.unshift(entry);
   hist = hist.slice(0, 50);
   // save to server
