@@ -502,9 +502,9 @@ function CourtCard({m,idx,players,scores,setScore,cfg,compact}){
   const handleScore=(field,val)=>{
     setScore(m.id,field,val);
     const n=parseInt(val);
-    if(!isNaN(n)&&n>=0&&n<=cfg.pts){
-      const other=field==='s1'?'s2':'s1';
-      setScore(m.id,other,String(cfg.pts-n));
+    const otherVal=field==='s1'?s2:s1;
+    if(!isNaN(n)&&n>=0&&n<=cfg.pts&&otherVal===''){
+      setScore(m.id,field==='s1'?'s2':'s1',String(cfg.pts-n));
     }
   };
 
