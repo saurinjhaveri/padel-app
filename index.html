@@ -499,12 +499,13 @@ function CourtCard({m,idx,players,scores,setScore,cfg,compact}){
   const sz=compact?{width:'46px',fontSize:'20px',padding:'6px'}:{width:'60px',fontSize:'24px',padding:'8px'};
   const nc='pname'+(compact?' sm':'');
 
-  const handleScore=(field,val)=>{
-    setScore(m.id,field,val);
+  const handleScore=(field,val)=>setScore(m.id,field,val);
+
+  const handleBlur=(field,val)=>{
     const n=parseInt(val);
-    const otherVal=field==='s1'?s2:s1;
-    if(!isNaN(n)&&n>=0&&n<=cfg.pts&&otherVal===''){
-      setScore(m.id,field==='s1'?'s2':'s1',String(cfg.pts-n));
+    if(!isNaN(n)&&n>=0&&n<=cfg.pts){
+      const otherVal=field==='s1'?s2:s1;
+      if(otherVal==='') setScore(m.id,field==='s1'?'s2':'s1',String(cfg.pts-n));
     }
   };
 
@@ -514,14 +515,14 @@ function CourtCard({m,idx,players,scores,setScore,cfg,compact}){
       <div class="m-team">
         ${m.team1.map(id=>html`<span key=${id} class=${nc+' '+(pGend(id,players)==='male'?'ml':'fl')}>${pName(id,players)}</span>`)}
         <div class="m-scw">
-          <input class="sc-inp" style=${sz} type="number" min="0" max=${cfg.pts} placeholder="0" value=${s1} onInput=${e=>handleScore('s1',e.target.value)}/>
+          <input class="sc-inp" style=${sz} type="number" min="0" max=${cfg.pts} placeholder="0" value=${s1} onInput=${e=>handleScore('s1',e.target.value)} onBlur=${e=>handleBlur('s1',e.target.value)}/>
         </div>
       </div>
       <div class="vs-lbl">vs</div>
       <div class="m-team right">
         ${m.team2.map(id=>html`<span key=${id} class=${nc+' '+(pGend(id,players)==='male'?'ml':'fl')}>${pName(id,players)}</span>`)}
         <div class="m-scw">
-          <input class="sc-inp" style=${sz} type="number" min="0" max=${cfg.pts} placeholder="0" value=${s2} onInput=${e=>handleScore('s2',e.target.value)}/>
+          <input class="sc-inp" style=${sz} type="number" min="0" max=${cfg.pts} placeholder="0" value=${s2} onInput=${e=>handleScore('s2',e.target.value)} onBlur=${e=>handleBlur('s2',e.target.value)}/>
         </div>
       </div>
     </div>
