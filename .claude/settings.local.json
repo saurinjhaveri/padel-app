@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh auth *)",
+      "Bash(netlify status *)",
+      "Bash(git --version)",
+      "Bash(brew install *)",
+      "Bash(npm install *)"
+    ]
+  }
+}
