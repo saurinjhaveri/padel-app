@@ -4,7 +4,11 @@ exports.handler = async (event) => {
   const code = event.path.split('/').pop();
   if (!code) return { statusCode: 400, body: 'Missing tournament code' };
 
-  const store = getStore('tournaments');
+  const store = getStore({
+    name: 'tournaments',
+    siteID: process.env.NETLIFY_SITE_ID,
+    token: process.env.NETLIFY_AUTH_TOKEN,
+  });
 
   if (event.httpMethod === 'GET') {
     try {
