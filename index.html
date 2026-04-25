@@ -322,23 +322,50 @@ function calcSt(players, sched, scores){
 const pName=(id,ps)=>ps.find(p=>p.id===id)?.name||'?';
 const pGend=(id,ps)=>ps.find(p=>p.id===id)?.gender||'male';
 
-/* ── history helpers ── */
-function saveHistory(entry) {
+/* ── history helpers (server-synced) ── */
+const HIST_KEY = '__history__';
+
+async function saveHistory(entry) {
+  let hist = await loadHistory();
+  hist.unshift(entry);
+  hist = hist.slice(0, 50);
+  // save to server
   try {
-    const hist = loadHistory();
-    hist.unshift(entry);
-    localStorage.setItem('padel_history', JSON.stringify(hist.slice(0, 50)));
+    await fetch(apiUrl(HIST_KEY), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(hist),
+    });
   } catch(e) {}
+  // save to localStorage as cache
+  try { localStorage.setItem('padel_history', JSON.stringify(hist)); } catch(e) {}
 }
 
-function loadHistory() {
+async function loadHistory() {
+  try {
+    const r = await fetch(apiUrl(HIST_KEY), { cache: 'no-store' });
+    if (r.ok) {
+      const data = await r.json();
+      // update local cache
+      try { localStorage.setItem('padel_history', JSON.stringify(data)); } catch(e) {}
+      return Array.isArray(data) ? data : [];
+    }
+  } catch(e) {}
+  // fall back to localStorage cache
   try {
     const v = localStorage.getItem('padel_history');
     return v ? JSON.parse(v) : [];
   } catch(e) { return []; }
 }
 
-function clearHistory() {
+async function clearHistory() {
+  try {
+    await fetch(apiUrl(HIST_KEY), {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify([]),
+    });
+  } catch(e) {}
   try { localStorage.removeItem('padel_history'); } catch(e) {}
 }
 
@@ -501,25 +528,30 @@ function ShareBar({code,sched,aps,cfg}){
 }
 
 function HistoryView({onBack}){
-  const [history,setHistory]=useState(()=>loadHistory());
+  const [history,setHistory]=useState([]);
+  const [loading,setLoading]=useState(true);
   const [expanded,setExpanded]=useState(null);
   const [confirming,setConfirming]=useState(false);
 
-  const handleClear=()=>{
-    if(confirming){clearHistory();setHistory([]);setConfirming(false);}
+  useEffect(()=>{
+    loadHistory().then(h=>{setHistory(h);setLoading(false);});
+  },[]);
+
+  const handleClear=async()=>{
+    if(confirming){await clearHistory();setHistory([]);setConfirming(false);}
     else{setConfirming(true);setTimeout(()=>setConfirming(false),3000);}
   };
 
   return html`<div>
     <div class="app-hdr">
       <h1>🎾 Padel <span>History</span></h1>
-      <p>All completed tournaments on this device</p>
+      <p>All completed tournaments — shared across all devices</p>
     </div>
     <div class="hist-hdr">
       <button class="btn-sec" onClick=${onBack}>← New Tournament</button>
       ${history.length>0?html`<button class="hist-clear" onClick=${handleClear}>${confirming?'Tap again to confirm':'Clear all history'}</button>`:null}
     </div>
-    ${history.length===0?html`
+    ${loading?html`<div class="hist-empty"><span class="hist-empty-ico">⏳</span><div style="font-size:14px;color:var(--text-2)">Loading history…</div></div>`:history.length===0?html`
       <div class="hist-empty">
         <span class="hist-empty-ico">📋</span>
         <div style="font-size:16px;font-weight:600;margin-bottom:8px">No tournaments yet</div>
@@ -573,16 +605,13 @@ function SetupView({players,setPlayers,cfg,setCfg,onStart,joinCode,setJoinCode,o
   const women=players.filter(p=>p.gender==='female').length;
   const setC=(k,v)=>setCfg(c=>({...c,[k]:v}));
   const canStart=valid.length>=4&&(cfg.type!=='mixed'||(men>=2&&women>=2));
-  const histCount=loadHistory().length;
   return html`<div>
     <div class="app-hdr">
       <h1>🎾 Padel <span>Tournament</span></h1>
       <p>Americano · Mexicano · Mixed doubles · Live scoreboard · Print draw sheet</p>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-      <button class="btn-sec" onClick=${onHistory}>
-        📋 Match History${histCount>0?` (${histCount})`:''}
-      </button>
+      <button class="btn-sec" onClick=${onHistory}>📋 Match History</button>
     </div>
     <div class="join-box">
       <span class="cfg-lbl">Join or Watch a Live Tournament</span>
