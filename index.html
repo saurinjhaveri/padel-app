@@ -140,6 +140,14 @@
   .act-row{display:flex;gap:8px;margin-top:1rem}
   .act-row .btn-main{flex:1;margin-top:0}
 
+  /* time estimate */
+  .time-est{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--card-r);margin-bottom:10px}
+  .time-est-left{display:flex;align-items:center;gap:10px}
+  .time-est-ico{font-size:22px;line-height:1}
+  .time-est-lbl{font-size:11px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:1px}
+  .time-est-val{font-size:22px;font-weight:700;color:var(--accent);letter-spacing:-.5px}
+  .time-est-detail{font-size:12px;color:var(--text-2);text-align:right;line-height:1.6}
+
   /* desc box */
   .desc-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--card-r);padding:12px 16px;margin-bottom:12px;font-size:13px;color:var(--text-2);line-height:1.7}
   .desc-box strong{color:var(--text);font-weight:600}
@@ -321,6 +329,32 @@ function calcSt(players, sched, scores){
 
 const pName=(id,ps)=>ps.find(p=>p.id===id)?.name||'?';
 const pGend=(id,ps)=>ps.find(p=>p.id===id)?.gender||'male';
+
+function calcTimeEst(valid, cfg) {
+  const n = valid.length;
+  if (n < 4) return null;
+  const men = valid.filter(p=>p.gender==='male').length;
+  const women = valid.filter(p=>p.gender==='female').length;
+  let rounds;
+  if (cfg.format === 'mexicano') {
+    rounds = null;
+  } else if (cfg.type === 'mixed') {
+    rounds = Math.max(men, women);
+  } else {
+    const padded = n + ((4 - n % 4) % 4);
+    rounds = padded - 1;
+  }
+  const minsPerRound = cfg.pts * 0.7;
+  const total = rounds !== null ? Math.round(rounds * minsPerRound) : null;
+  return { rounds, minsPerRound: Math.round(minsPerRound), total };
+}
+
+function fmtMins(m) {
+  if (m < 60) return `~${m} min`;
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  return rem === 0 ? `~${h} hr` : `~${h} hr ${rem} min`;
+}
 
 /* ── history helpers (server-synced) ── */
 const HIST_KEY = '__history__';
@@ -655,6 +689,26 @@ function SetupView({players,setPlayers,cfg,setCfg,onStart,joinCode,setJoinCode,o
     <div class="desc-box">
       <strong>${cfg.format==='americano'?'Americano':'Mexicano'}${cfg.type==='mixed'?' mixed':''}</strong> — ${cfg.format==='americano'?cfg.type==='mixed'?'Each man rotates through every woman as partner. All rounds generated upfront.':'Partners rotate each round. All rounds generated upfront.':'Round 1 random; subsequent rounds generated manually based on standings.'}${cfg.type==='mixed'?' Each team = 1M + 1W.':''}
     </div>
+    ${(()=>{
+      const est = canStart ? calcTimeEst(valid, cfg) : null;
+      if (!est) return null;
+      const isMex = cfg.format === 'mexicano';
+      return html`<div class="time-est">
+        <div class="time-est-left">
+          <span class="time-est-ico">⏱️</span>
+          <div>
+            <div class="time-est-lbl">Approximate time required</div>
+            <div class="time-est-val">${isMex ? fmtMins(est.minsPerRound)+' / round' : fmtMins(est.total)}</div>
+          </div>
+        </div>
+        <div class="time-est-detail">
+          ${isMex
+            ? `${est.minsPerRound} min per round\nRounds vary with Mexicano`
+            : `${est.rounds} rounds × ${est.minsPerRound} min\n${cfg.pts} pts × 0.7 min/pt`
+          }
+        </div>
+      </div>`;
+    })()}
     ${!canStart?html`<p style="font-size:12px;color:#FFAB40;margin-bottom:8px">${valid.length<4?'Enter at least 4 player names.':cfg.type==='mixed'&&(men<2||women<2)?'Mixed needs at least 2 men and 2 women.':''}</p>`:null}
     <button class="btn-main" disabled=${!canStart} onClick=${onStart}>Start tournament →</button>
   </div>`;
