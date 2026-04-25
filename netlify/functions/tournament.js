@@ -6,7 +6,7 @@ exports.handler = async (event) => {
 
   const store = getStore({
     name: 'tournaments',
-    siteID: process.env.NETLIFY_SITE_ID || '5227e858-770c-456c-9764-f5e43813faf2',
+    siteID: process.env.NETLIFY_SITE_ID || 'cf02ba88-d713-4c27-9432-1d9249695e89',
     token: process.env.NETLIFY_AUTH_TOKEN,
   });
 
